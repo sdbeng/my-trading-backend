@@ -1,7 +1,7 @@
 {
   "name": "websocket-backend",
   "version": "1.0.0",
-  "type": "module",  // Add this for ES modules
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node --experimental-specifier-resolution=node dist/websocket/server.js",
