@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node --experimental-specifier-resolution=node dist/websocket/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/websocket/server.ts",
+    "start": "node dist/websocket/server.js",
+    "dev": "ts-node-dev --transpile-only src/websocket/server.ts",
     "lint": "eslint . --ext .ts",
     "test": "jest"
   },
@@ -33,5 +33,4 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }
-  
 }
