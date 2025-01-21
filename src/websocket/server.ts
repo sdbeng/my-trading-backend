@@ -4,6 +4,9 @@ import { createServer } from 'http'
 import cors from 'cors'
 import helmet from 'helmet'
 import 'express-async-errors'
+import { connectDB } from '../config/database'
+import { Subscription } from '../models/subscription'
+import { Signal } from '../models/signal'
 
 interface WebSocketMessage {
   type: string
@@ -49,35 +52,60 @@ const wss = new WebSocketServer({ server })
 const clients = new Map<string, ClientSubscription>();
 const symbolSubscribers = new Map<string, Set<string>>(); // symbol -> clientIds
 
-function addSubscription(clientId: string, symbols: string[], ws: WebSocket) {
-  // Create or update client subscription
-  const existingClient = clients.get(clientId);
-  if (existingClient) {
-    symbols.forEach(symbol => existingClient.symbols.add(symbol));
-  } else {
-    clients.set(clientId, {
-      id: clientId,
-      symbols: new Set(symbols),
-      ws
+// Connect to database when server starts
+connectDB().then(() => {
+  console.log('Database connected');
+}).catch(error => {
+  console.error('Database connection failed:', error);
+});
+
+// Update subscription handling to use database
+async function addSubscription(clientId: string, symbols: string[], ws: WebSocket) {
+  try {
+    await Subscription.findOneAndUpdate(
+      { clientId },
+      { 
+        $addToSet: { symbols: { $each: symbols } },
+        lastActive: new Date()
+      },
+      { upsert: true }
+    );
+
+    // Update in-memory state
+    const existingClient = clients.get(clientId);
+    if (existingClient) {
+      symbols.forEach(symbol => existingClient.symbols.add(symbol));
+    } else {
+      clients.set(clientId, {
+        id: clientId,
+        symbols: new Set(symbols),
+        ws
+      });
+    }
+
+    // Update symbol subscribers
+    symbols.forEach(symbol => {
+      if (!symbolSubscribers.has(symbol)) {
+        symbolSubscribers.set(symbol, new Set());
+      }
+      symbolSubscribers.get(symbol)?.add(clientId);
     });
+
+    ws.send(JSON.stringify({
+      type: 'subscribed',
+      payload: {
+        symbols,
+        total: clients.get(clientId)?.symbols.size
+      }
+    }));
+
+  } catch (error) {
+    console.error('Database error:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      payload: 'Subscription failed'
+    }));
   }
-
-  // Update symbol -> subscribers mapping
-  symbols.forEach(symbol => {
-    if (!symbolSubscribers.has(symbol)) {
-      symbolSubscribers.set(symbol, new Set());
-    }
-    symbolSubscribers.get(symbol)?.add(clientId);
-  });
-
-  // Send confirmation
-  ws.send(JSON.stringify({
-    type: 'subscribed',
-    payload: {
-      symbols,
-      total: clients.get(clientId)?.symbols.size
-    }
-  }));
 }
 
 function removeSubscription(clientId: string, symbols?: string[]) {
