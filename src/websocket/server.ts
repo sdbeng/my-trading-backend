@@ -4,9 +4,9 @@ import { createServer } from 'http'
 import cors from 'cors'
 import helmet from 'helmet'
 import 'express-async-errors'
-import { connectDB } from '../config/database'
-import { Subscription } from '../models/subscription'
-import { Signal } from '../models/signal'
+import { connectDB } from '../config/database.js'
+import { Subscription } from '../models/subscription.js'
+import { Signal } from '../models/signal.js'
 
 interface WebSocketMessage {
   type: string
