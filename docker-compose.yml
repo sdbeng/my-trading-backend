@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 services:
   websocket-server:
     build: .
@@ -7,4 +7,5 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8080
+      - MONGODB_URI=${MONGODB_URI}
     restart: always
