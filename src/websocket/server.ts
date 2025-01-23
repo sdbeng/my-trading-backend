@@ -7,6 +7,7 @@ import 'express-async-errors'
 import { connectDB } from '../config/database.js'
 import { Subscription } from '../models/subscription.js'
 import { Signal } from '../models/signal.js'
+import { signalGenerator } from '../services/signalGenerator.js'
 
 interface WebSocketMessage {
   type: string
@@ -198,22 +199,28 @@ server.on('error', (error) => {
 
 function handleSubscription(clientId: string, ws: WebSocket, symbols: string[]) {
   console.log(`Client ${clientId} subscribing to:`, symbols);
+  
+  // Add to subscription tracking
   addSubscription(clientId, symbols, ws);
+  
+  // Start generating signals for these symbols
+  symbols.forEach(symbol => {
+    signalGenerator.subscribe(symbol, ws);
+  });
 }
 
 function handleUnsubscription(clientId: string, symbols: string[]) {
   console.log(`Client ${clientId} unsubscribing from:`, symbols);
-  removeSubscription(clientId, symbols);
   
   const ws = clients.get(clientId)?.ws;
   if (ws) {
-    ws.send(JSON.stringify({
-      type: 'unsubscribed',
-      payload: {
-        symbols,
-        remaining: clients.get(clientId)?.symbols.size || 0
-      }
-    }));
+    // Remove from signal generator
+    symbols.forEach(symbol => {
+      signalGenerator.unsubscribe(symbol, ws);
+    });
+    
+    // Remove from subscription tracking
+    removeSubscription(clientId, symbols);
   }
 }
 
@@ -263,6 +270,12 @@ function broadcastSignal(symbol: string, signal: TradeSignal) {
     }
   });
 }
+
+// Cleanup on server shutdown
+process.on('SIGINT', () => {
+  signalGenerator.cleanup();
+  process.exit();
+});
 
 const PORT = process.env.PORT || 8080
 server.listen(PORT, () => {
