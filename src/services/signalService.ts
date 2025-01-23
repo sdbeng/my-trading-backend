@@ -1,4 +1,4 @@
-import { Signal } from '../models/signal';
+import { Signal } from '../models/signal.js';
 
 export async function getLatestSignals(symbols: string[], limit = 10) {
   return Signal.find({ symbol: { $in: symbols } })
